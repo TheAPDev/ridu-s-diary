@@ -102,9 +102,12 @@ export default function CharacterPanel() {
   };
 
   const filteredCharacters = characters.filter(
-    (char) =>
-      char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      char.role.toLowerCase().includes(searchQuery.toLowerCase())
+    (char) => {
+      const q = searchQuery.toLowerCase();
+      const name = (char.name ?? '').toLowerCase();
+      const role = (char.role ?? '').toLowerCase();
+      return name.includes(q) || role.includes(q);
+    }
   );
 
   return (
