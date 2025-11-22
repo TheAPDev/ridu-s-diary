@@ -20,8 +20,14 @@ function makeMockChain(tableName?: string) {
 
   const chain = {
     select(columns?: string) {
-      builder._op = 'select';
       builder._columns = columns;
+      // If select is called after insert (common pattern: insert(...).select()),
+      // mark that we should return the inserted items instead of overwriting op.
+      if (builder._op === 'insert') {
+        builder._selectAfterInsert = true;
+      } else {
+        builder._op = 'select';
+      }
       return chain;
     },
     order() {
@@ -56,11 +62,11 @@ function makeMockChain(tableName?: string) {
         try {
           let res: any = { data: [], error: null };
 
-          if (builder._op === 'insert' && builder._insertItems) {
+          if ((builder._op === 'insert' || builder._selectAfterInsert) && builder._insertItems) {
             // echo back inserted items and give them ids
             const itemsArray: any[] = Array.isArray(builder._insertItems) ? builder._insertItems : [builder._insertItems];
             const inserted = itemsArray.map((it: any, i: number) => ({ ...it, id: (Date.now() + i).toString() }));
-            res = { data: inserted, error: null };
+            res = builder._single ? { data: inserted[0], error: null } : { data: inserted, error: null };
           } else if (builder._op === 'select') {
             res = { data: [], error: null };
           } else if (builder._op === 'update' || builder._op === 'delete') {
