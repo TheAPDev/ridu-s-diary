@@ -7,6 +7,7 @@ export default function CharacterPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [characters, setCharacters] = useState<Character[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [formData, setFormData] = useState({ name: '', role: '', notes: '' });
   const [loading, setLoading] = useState(true);
 
@@ -95,23 +96,29 @@ export default function CharacterPanel() {
           filteredCharacters.map((character) => (
             <div
               key={character.id}
-              className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4 cursor-pointer group"
+              className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4 group"
             >
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0">
-                  <User size={20} className="text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 text-sm mb-1">
-                    {character.name}
-                  </h3>
-                  <p className="text-xs text-blue-600 font-medium mb-2">
-                    {character.role}
-                  </p>
-                  <p className="text-xs text-gray-600 leading-relaxed line-clamp-3">
-                    {character.notes}
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCharacter(character)}
+                  className="flex-1 text-left flex items-start gap-3"
+                >
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0">
+                    <User size={20} className="text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm mb-1">
+                      {character.name}
+                    </h3>
+                    <p className="text-xs text-blue-600 font-medium mb-2">
+                      {character.role}
+                    </p>
+                    <p className="text-xs text-gray-600 leading-relaxed truncate">
+                      {character.notes}
+                    </p>
+                  </div>
+                </button>
                 <button
                   onClick={() => {
                     if (confirm(`Delete character "${character.name}"? This cannot be undone.`)) {
@@ -204,6 +211,19 @@ export default function CharacterPanel() {
             </button>
           </div>
         </form>
+      </Modal>
+      {/* View character modal */}
+      <Modal
+        isOpen={Boolean(selectedCharacter)}
+        onClose={() => setSelectedCharacter(null)}
+        title={selectedCharacter ? selectedCharacter.name : ''}
+      >
+        {selectedCharacter && (
+          <div className="space-y-4">
+            <p className="text-sm text-blue-600 font-medium">{selectedCharacter.role}</p>
+            <div className="text-sm text-gray-700 whitespace-pre-wrap">{selectedCharacter.notes}</div>
+          </div>
+        )}
       </Modal>
     </div>
   );
