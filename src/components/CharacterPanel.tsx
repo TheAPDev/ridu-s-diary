@@ -1,4 +1,4 @@
-import { Plus, Search, User } from 'lucide-react';
+import { Plus, Search, User, Edit } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Modal from './Modal';
 import { supabase, type Character } from '../lib/supabase';
@@ -8,7 +8,10 @@ export default function CharacterPanel() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [formData, setFormData] = useState({ name: '', role: '', notes: '' });
+  const [editFormData, setEditFormData] = useState({ name: '', role: '', notes: '' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -62,6 +65,39 @@ export default function CharacterPanel() {
       setCharacters(characters.filter((c) => c.id !== id));
     } catch (error) {
       console.error('Error deleting character:', error);
+    }
+  };
+
+  const openEditModal = (character: Character) => {
+    setEditingCharacter(character);
+    setEditFormData({ name: character.name, role: character.role, notes: character.notes });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateCharacter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCharacter) return;
+    if (!editFormData.name.trim()) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('characters')
+        .update({
+          name: editFormData.name,
+          role: editFormData.role,
+          notes: editFormData.notes,
+        })
+        .eq('id', editingCharacter.id)
+        .select();
+
+      if (error) throw error;
+
+      // Replace the updated character in local state
+      setCharacters((prev) => prev.map((c) => (c.id === editingCharacter.id ? data[0] : c)));
+      setIsEditModalOpen(false);
+      setEditingCharacter(null);
+    } catch (error) {
+      console.error('Error updating character:', error);
     }
   };
 
@@ -120,12 +156,19 @@ export default function CharacterPanel() {
                   </div>
                 </button>
                 <button
+                  onClick={() => openEditModal(character)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 ml-2"
+                  title="Edit character"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
                   onClick={() => {
                     if (confirm(`Delete character "${character.name}"? This cannot be undone.`)) {
                       handleDeleteCharacter(character.id);
                     }
                   }}
-                  className="text-gray-400 hover:text-red-600 ml-2"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600 ml-2"
                   title="Delete character"
                 >
                   ×
@@ -224,6 +267,68 @@ export default function CharacterPanel() {
             <div className="text-sm text-gray-700 whitespace-pre-wrap">{selectedCharacter.notes}</div>
           </div>
         )}
+      </Modal>
+
+      {/* Edit character modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingCharacter(null);
+        }}
+        title="Edit Character"
+      >
+        <form onSubmit={handleUpdateCharacter} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Character Name</label>
+            <input
+              type="text"
+              value={editFormData.name}
+              onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., Elena Blackwood"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <input
+              type="text"
+              value={editFormData.role}
+              onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., Protagonist"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <textarea
+              value={editFormData.notes}
+              onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              placeholder="Enter character description and traits"
+              rows={4}
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingCharacter(null);
+              }}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+            >
+              Save Changes
+            </button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
