@@ -1,3 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Editor specific styles */
+.editor-textarea {
+	font-family: Georgia, serif;
+	font-size: 18px;
+	line-height: 1.7;
+}

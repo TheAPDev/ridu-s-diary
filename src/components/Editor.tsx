@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { supabase } from '../lib/supabase';
-import { Bold, Italic, Underline, List, ListOrdered, Type, Save, Moon, Sun } from 'lucide-react';
+import { Bold, Italic, Underline, Save, Moon, Sun } from 'lucide-react';
 
 // interface TextFormatting { // Removed as it is unused
 //   bold: boolean; 
@@ -19,8 +19,7 @@ export default function Editor({ isDarkMode, toggleDarkMode }: { isDarkMode: boo
   const [currentPageId, setCurrentPageId] = useState('1');
   const [isSaving, setIsSaving] = useState(false);
   
-  const [headingMode, setHeadingMode] = useState(false);
-  const [listMode, setListMode] = useState<'none' | 'bullet' | 'ordered'>('none');
+  // headingMode removed — toolbar simplified
 
   const currentPage = pages.find((p) => p.id === currentPageId);
   const wordCount = currentPage?.content.trim().split(/\s+/).filter((w) => w).length || 0;
@@ -151,60 +150,8 @@ export default function Editor({ isDarkMode, toggleDarkMode }: { isDarkMode: boo
     }, 0);
   };
 
-  const applyHeading = () => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const { selectionStart, selectionEnd } = textarea;
-    const selectedText = currentPage?.content.substring(selectionStart, selectionEnd) || '';
-
-    if (selectedText) {
-      let formattedText = selectedText;
-
-      if (selectedText.startsWith('# ')) {
-        formattedText = selectedText.slice(2);
-      } else {
-        formattedText = `# ${selectedText}`;
-      }
-
-      const newContent =
-        (currentPage?.content.substring(0, selectionStart) || '') +
-        formattedText +
-        (currentPage?.content.substring(selectionEnd) || '');
-
-      updatePageContent(newContent);
-      setHeadingMode(!headingMode);
-    }
-  };
-
-  const applyList = (type: 'bullet' | 'ordered') => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const { selectionStart, selectionEnd } = textarea;
-    const selectedText = currentPage?.content.substring(selectionStart, selectionEnd) || '';
-
-    if (selectedText) {
-      const lines = selectedText.split('\n');
-      const formattedLines = lines.map((line) => {
-        const isBullet = line.trim().startsWith('-');
-        const isOrdered = /^\d+\./.test(line.trim());
-
-        if (isBullet || isOrdered) {
-          return line.trim().replace(/^[-\d.]\s/, '');
-        }
-        return type === 'bullet' ? `- ${line}` : `1. ${line}`;
-      });
-
-      const newContent =
-        (currentPage?.content.substring(0, selectionStart) || '') +
-        formattedLines.join('\n') +
-        (currentPage?.content.substring(selectionEnd) || '');
-
-      updatePageContent(newContent);
-      setListMode((prev) => (prev === type ? 'none' : type));
-    }
-  };
+  // Heading and list helpers removed: toolbar was simplified. Keep headingMode state
+  // in case it's used for UI in the future.
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -307,12 +254,7 @@ export default function Editor({ isDarkMode, toggleDarkMode }: { isDarkMode: boo
               value={currentPage?.content || ''}
               onChange={(e) => updatePageContent(e.target.value)}
               onKeyDown={(e) => handleKeyDown(e)}
-              className={`w-full p-12 ${textClass} text-base leading-relaxed focus:outline-none resize-none rounded-xl transition-colors ${cardBgClass}`}
-              style={{
-                fontFamily: 'Georgia, serif',
-                fontSize: '18px',
-                lineHeight: '1.7',
-              }}
+              className={`w-full p-12 ${textClass} text-base leading-relaxed focus:outline-none resize-none rounded-xl transition-colors ${cardBgClass} editor-textarea`}
               placeholder="Begin your story..."
             />
           </div>
