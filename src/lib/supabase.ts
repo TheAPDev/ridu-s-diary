@@ -8,26 +8,78 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 // export a lightweight mock with the subset of methods used across the app
 // so the UI can render without crashing. In production (configured) we
 // create the real Supabase client.
-function makeMockChain() {
-  const chain: any = {
-    // .select() usually returns a Promise resolving to { data, error }
-    select: async () => ({ data: [], error: null }),
-    // chainable methods used in code
-    order() {
+function makeMockChain(tableName?: string) {
+  const builder: any = {
+    _op: null,
+    _table: tableName,
+    _insertItems: null,
+    _payload: null,
+    _eq: null,
+    _single: false,
+  };
+
+  const chain = {
+    select(columns?: string) {
+      builder._op = 'select';
+      builder._columns = columns;
       return chain;
     },
-    insert() {
-      return { select: async () => ({ data: [], error: null }) };
+    order() {
+      // ignore ordering in mock
+      return chain;
+    },
+    insert(items: any) {
+      builder._op = 'insert';
+      builder._insertItems = items;
+      return chain;
+    },
+    update(payload: any) {
+      builder._op = 'update';
+      builder._payload = payload;
+      return chain;
     },
     delete() {
-      return { eq: async () => ({ data: null, error: null }) };
+      builder._op = 'delete';
+      return chain;
     },
-    update() {
-      return { eq: async () => ({ data: null, error: null }) };
+    eq(col: string, val: any) {
+      builder._eq = [col, val];
+      return chain;
     },
-    eq: async () => ({ data: null, error: null }),
+    single() {
+      builder._single = true;
+      return chain;
+    },
+    // make the builder then-able so `await supabase.from(...).select()` works
+    then(onFulfilled: (res: any) => any) {
+      return (async () => {
+        try {
+          let res: any = { data: [], error: null };
+
+          if (builder._op === 'insert' && builder._insertItems) {
+            // echo back inserted items and give them ids
+            const itemsArray: any[] = Array.isArray(builder._insertItems) ? builder._insertItems : [builder._insertItems];
+            const inserted = itemsArray.map((it: any, i: number) => ({ ...it, id: (Date.now() + i).toString() }));
+            res = { data: inserted, error: null };
+          } else if (builder._op === 'select') {
+            res = { data: [], error: null };
+          } else if (builder._op === 'update' || builder._op === 'delete') {
+            res = { data: null, error: null };
+          }
+
+          return onFulfilled(res);
+        } catch (err) {
+          return onFulfilled({ data: null, error: err });
+        }
+      })();
+    },
+    catch() {
+      // noop for mock
+      return chain as any;
+    },
   };
-  return chain;
+
+  return chain as any;
 }
 
 const isConfigured = Boolean(supabaseUrl && supabaseAnonKey);
