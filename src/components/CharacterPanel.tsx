@@ -1,7 +1,18 @@
+
 import { Plus, Search, User, Edit } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Modal from './Modal';
-import { supabase, type Character } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
+
+// Define the Character type locally
+export type Character = {
+  id: string;
+  name: string;
+  description?: string;
+  role?: string;
+  notes?: string;
+  // Add other fields as needed based on your DB schema
+};
 
 export default function CharacterPanel() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,7 +50,7 @@ export default function CharacterPanel() {
     if (!formData.name.trim()) return;
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('characters')
         .insert([
           {
@@ -51,9 +62,9 @@ export default function CharacterPanel() {
         .select();
 
       if (error) throw error;
-      setCharacters([data[0], ...characters]);
       setFormData({ name: '', role: '', notes: '' });
       setIsModalOpen(false);
+      await fetchCharacters();
     } catch (error) {
       console.error('Error adding character:', error);
     }
@@ -62,7 +73,7 @@ export default function CharacterPanel() {
   const handleDeleteCharacter = async (id: string) => {
     try {
       await supabase.from('characters').delete().eq('id', id);
-      setCharacters(characters.filter((c) => c.id !== id));
+      await fetchCharacters();
     } catch (error) {
       console.error('Error deleting character:', error);
     }
@@ -70,7 +81,11 @@ export default function CharacterPanel() {
 
   const openEditModal = (character: Character) => {
     setEditingCharacter(character);
-    setEditFormData({ name: character.name, role: character.role, notes: character.notes });
+    setEditFormData({
+      name: character.name,
+      role: character.role ?? '',
+      notes: character.notes ?? ''
+    });
     setIsEditModalOpen(true);
   };
 
@@ -80,7 +95,7 @@ export default function CharacterPanel() {
     if (!editFormData.name.trim()) return;
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('characters')
         .update({
           name: editFormData.name,
@@ -92,8 +107,7 @@ export default function CharacterPanel() {
 
       if (error) throw error;
 
-      // Replace the updated character in local state
-      setCharacters((prev) => prev.map((c) => (c.id === editingCharacter.id ? data[0] : c)));
+      await fetchCharacters();
       setIsEditModalOpen(false);
       setEditingCharacter(null);
     } catch (error) {
@@ -103,6 +117,7 @@ export default function CharacterPanel() {
 
   const filteredCharacters = characters.filter(
     (char) => {
+      if (!char || typeof char !== 'object') return false;
       const q = searchQuery.toLowerCase();
       const name = (char.name ?? '').toLowerCase();
       const role = (char.role ?? '').toLowerCase();
@@ -133,51 +148,47 @@ export default function CharacterPanel() {
           <div className="text-center py-4 text-gray-500 text-sm">No characters yet</div>
         ) : (
           filteredCharacters.map((character) => (
-            <div
-              key={character.id}
-              className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4 group"
-            >
-              <div className="flex items-start gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCharacter(character)}
-                  className="flex-1 text-left flex items-start gap-3"
-                >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0">
-                    <User size={20} className="text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 text-sm mb-1">
-                      {character.name}
-                    </h3>
-                    <p className="text-xs text-blue-600 font-medium mb-2">
-                      {character.role}
-                    </p>
-                    <p className="text-xs text-gray-600 leading-relaxed truncate">
-                      {character.notes}
-                    </p>
-                  </div>
-                </button>
-                <button
-                  onClick={() => openEditModal(character)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 ml-2"
-                  title="Edit character"
-                >
-                  <Edit size={16} />
-                </button>
-                <button
-                  onClick={() => {
-                    if (confirm(`Delete character "${character.name}"? This cannot be undone.`)) {
-                      handleDeleteCharacter(character.id);
-                    }
-                  }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600 ml-2"
-                  title="Delete character"
-                >
-                  ×
-                </button>
+            character && character.name ? (
+              <div
+                key={character.id}
+                className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4 group"
+              >
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCharacter(character)}
+                    className="flex-1 text-left flex items-start gap-3"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0">
+                      <User size={20} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 text-sm mb-1">
+                        {character.name}
+                      </h3>
+                      <p className="text-xs text-blue-600 font-medium mb-2">
+                        {character.role}
+                      </p>
+                      <p className="text-xs text-gray-600 leading-relaxed truncate">
+                        {character.notes}
+                      </p>
+                    </div>
+                  </button>
+                  {/* Edit button removed */}
+                  <button
+                    onClick={() => {
+                      if (confirm(`Delete character "${character.name}"? This cannot be undone.`)) {
+                        handleDeleteCharacter(character.id);
+                      }
+                    }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600 ml-2"
+                    title="Delete character"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : null
           ))
         )}
       </div>

@@ -1,7 +1,18 @@
 import { GripVertical, Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Modal from './Modal';
-import { supabase, type Chapter } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
+
+// Define the Chapter type locally
+export type Chapter = {
+  id: string;
+  title: string;
+  content?: string;
+  word_count?: number;
+  order?: number;
+  created_at?: string;
+  updated_at?: string;
+};
 
 export default function ChapterPanel() {
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -18,7 +29,8 @@ export default function ChapterPanel() {
         .order('order', { ascending: true });
 
       if (error) throw error;
-      setChapters(data || []);
+      if (data) setChapters(data);
+      else setChapters([]);
     } catch (error) {
       console.error('Error fetching chapters:', error);
     } finally {
@@ -35,7 +47,7 @@ export default function ChapterPanel() {
     if (!formData.title.trim()) return;
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('chapters')
         .insert([
           {
@@ -48,9 +60,9 @@ export default function ChapterPanel() {
         .select();
 
       if (error) throw error;
-      setChapters([...chapters, data[0]]);
       setFormData({ title: '' });
       setIsModalOpen(false);
+      await fetchChapters();
     } catch (error) {
       console.error('Error adding chapter:', error);
     }
@@ -59,7 +71,7 @@ export default function ChapterPanel() {
   const handleDeleteChapter = async (id: string) => {
     try {
       await supabase.from('chapters').delete().eq('id', id);
-      setChapters(chapters.filter((c) => c.id !== id));
+      await fetchChapters();
     } catch (error) {
       console.error('Error deleting chapter:', error);
     }
@@ -85,7 +97,7 @@ export default function ChapterPanel() {
         <h2 className="text-lg font-semibold text-gray-900">Chapters</h2>
       </div>
 
-  <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
         {loading ? (
           <div className="text-center py-4 text-gray-500">Loading...</div>
         ) : chapters.length === 0 ? (
@@ -109,9 +121,9 @@ export default function ChapterPanel() {
                     {chapter.title}
                   </h3>
                   <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span>{chapter.word_count.toLocaleString()} words</span>
+                    <span>{(chapter.word_count ?? 0).toLocaleString()} words</span>
                     <span className="text-gray-300">•</span>
-                    <span>{formatDate(chapter.updated_at)}</span>
+                    <span>{chapter.updated_at ? formatDate(chapter.updated_at) : ''}</span>
                   </div>
                 </div>
                 <button
